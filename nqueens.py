@@ -11,48 +11,48 @@ where 50 is the size of a chessboard you want the problem to be solved on.
 
 
 import sys
+from collections import namedtuple
 
 
-def make_board(dimension):
-    """Create and return new empty board"""
-    return [
-        [0] * dimension
-        for _ in range(dimension)
-    ]
+Point = namedtuple('Point', ('x', 'y'))
 
 
 def print_board(board):
     """Print the given board to stdout"""
-    border = '+%s+' % ('-' * (len(board) * 2 - 1))
+    size = len(board)
+    border = '+%s+' % ('-' * (size * 2 - 1))
 
     print(border)
-    for row in board:
-        print('|%s|' % '|'.join('Q' if cell else '_' for cell in row))
-    print(border)
-    print('')
+    for x in range(size):
+        print(
+            '|%s|' % '|'.join('Q' if Point(x, y) in board else '_'
+                              for y in range(size))
+        )
+    print(border + '\n')
 
 
-def can_place(board, row, col):
+def can_place(board, size, point):
     """Take a board and a point and return True if it is possible to place
        a new queen into that point, False otherwise.
 
        Note that we don't check the board cells to the right
        and on the current column, because we are moving from top-left corner
-       in outer cycle and there can not be any queens to the right
+       in outer loop and there can not be any queens to the right
        from current position"""
-    dimension = len(board)
+    # size = len(board)
+    row, col = point
 
     # Can't place a queen in a row that already has one
-    if any(board[row][:col]): return False
+    if board & {Point(row, c) for c in range(col)}: return False
 
-    # Can't place a queen if any diagonal already has one: check upper-left branch...
-    if any(board[r][c] for r, c
-           in zip(range(row-1, -1, -1), range(col-1, -1, -1))):
+    # Can't place a queen if any diagonal already has one: upper-left...
+    if board & {Point(r, c) for (r, c)
+                in zip(range(row-1, -1, -1), range(col-1, -1, -1))}:
         return False
 
-    # ... and lower-left branch
-    if any(board[r][c] for r, c
-           in zip(range(row+1, dimension), range(col-1, -1, -1))):
+    # ... and lower-left
+    if board & {Point(r, c) for (r, c)
+                in zip(range(row+1, size), range(col-1, -1, -1))}:
         return False
 
     # If no attacking queens found so far, consider it safe to place a new one
@@ -60,28 +60,28 @@ def can_place(board, row, col):
     return True
 
 
-def solve_recursively(board, col, acc):
+def solve_recursively(board, size, col, acc):
     """Solve the N queens puzzle for a given board
        by recursively traversing the possible solutions tree"""
-    dimension = len(board)
 
     # If all the board is filled, than we've found a solution.
     # Print it and increment the counter
-    if col == dimension:
+    if col == size:
         print_board(board)
         return acc + 1
 
-    for r in range(dimension):
-        if can_place(board, r, col):
+    for r in range(size):
+        point = Point(r, col)
+        if can_place(board, size, point):
 
             # Place a queen here, 'coz we can
-            board[r][col] = 1
+            board.add(point)
 
             # Dive into subtree
-            acc = solve_recursively(board, col+1, acc)
+            acc = solve_recursively(board, size, col+1, acc)
 
             # Remove a queen, moving backwards in the possible solutions tree
-            board[r][col] = 0
+            board.remove(point)
 
     return acc
 
@@ -94,20 +94,19 @@ def print_argument_error(argument):
 
 def main():
     """Entry point"""
-    dimension_arg = sys.argv[1]
+    size_arg = sys.argv[1]
 
     try:
-        dimension = int(dimension_arg)
+        size = int(size_arg)
     except ValueError:
-        print_argument_error(dimension_arg)
+        print_argument_error(size_arg)
         return
 
-    if dimension < 1:
-        print_argument_error(dimension_arg)
+    if size < 1:
+        print_argument_error(size_arg)
         return
 
-    board = make_board(dimension)
-    total = solve_recursively(board, 0, 0)
+    total = solve_recursively(set(), size, 0, 0)
 
     print('Total: %s' % total)
 
